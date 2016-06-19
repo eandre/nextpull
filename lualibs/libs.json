@@ -1,0 +1,16 @@
+{
+	"libs": [
+		{
+			"path": "LibStub",
+				"embeds": ["*.lua"]
+		},
+		{
+			"path": "CallbackHandler-1.0",
+			"embeds": ["*.xml"]
+		},
+		{
+			"path": "HereBeDragons-1.0",
+			"embeds": ["*.lua"]
+		}
+	]
+}

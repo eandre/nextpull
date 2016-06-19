@@ -3,12 +3,14 @@ package timer
 import (
 	"github.com/eandre/lunar-wow/pkg/luastrings"
 	"github.com/eandre/lunar-wow/pkg/wow"
+	"github.com/eandre/nextpull/boss"
 )
 
 type Timer struct {
 	Creator wow.GUID
 	Started wow.Time
 	ETA     wow.Time
+	Boss    *boss.Boss
 }
 
 var curr *Timer

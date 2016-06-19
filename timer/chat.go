@@ -3,6 +3,7 @@ package timer
 import (
 	"github.com/eandre/lunar-wow/pkg/luastrings"
 	"github.com/eandre/lunar-wow/pkg/wow"
+	"github.com/eandre/nextpull/boss"
 )
 
 const msgPrefix = "NP_TIMER"
@@ -16,8 +17,9 @@ func broadcastStartTimer(t *Timer) {
 	now := wow.GetTime()
 	from := luastrings.ToString(t.Started - now)
 	to := luastrings.ToString(t.ETA - now)
+	eid := luastrings.ToString(t.Boss.EncounterID)
 
-	msg := "TIMERSTART " + string(t.Creator) + " " + from + " " + to
+	msg := "TIMERSTART " + eid + " " + string(t.Creator) + " " + from + " " + to
 	wow.SendAddonMessage(msgPrefix, msg, wow.AddonChatTypeRaid, nil)
 }
 
@@ -53,16 +55,21 @@ func init() {
 		}
 
 		parts := luastrings.Split(" ", message, -1)
-		if len(parts) < 4 {
+		if len(parts) < 5 {
 			// Bad format
 			return
 		}
 
+		// Find the encounter
+		eid := boss.EncounterID(luastrings.ToInt(parts[1]))
+		b := boss.Find(eid)
+
 		now := wow.GetTime()
 		curr = &Timer{
-			Creator: wow.GUID(parts[1]),
-			Started: now + wow.Time(luastrings.ToFloat(parts[2])),
-			ETA:     now + wow.Time(luastrings.ToFloat(parts[3])),
+			Creator: wow.GUID(parts[2]),
+			Started: now + wow.Time(luastrings.ToFloat(parts[3])),
+			ETA:     now + wow.Time(luastrings.ToFloat(parts[4])),
+			Boss:    b,
 		}
 	})
 }
