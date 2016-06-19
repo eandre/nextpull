@@ -15,12 +15,41 @@ type Timer struct {
 
 var curr *Timer
 
-func Current() (*Timer, bool) {
-	return curr, curr != nil
+func newTimer(t *Timer) {
+	curr = t
+	for _, f := range registry {
+		f(t, false)
+	}
+}
+
+func stopTimer() {
+	if curr == nil {
+		return
+	}
+
+	t := curr
+	curr = nil
+	for _, f := range registry {
+		f(t, true)
+	}
 }
 
 func CanModify(unit wow.UnitID) bool {
 	return unitIsRaidAssistant(unit)
+}
+
+func StopAll() {
+	broadcastStopTimers()
+}
+
+func Start(t *Timer) {
+	broadcastStartTimer(t)
+}
+
+var registry []func(*Timer, bool)
+
+func RegisterCallback(f func(t *Timer, stopped bool)) {
+	registry = append(registry, f)
 }
 
 func unitIsRaidAssistant(unit wow.UnitID) bool {

@@ -11,6 +11,10 @@
 		{
 			"path": "HereBeDragons-1.0",
 			"embeds": ["*.lua"]
+		},
+		{
+			"path": "AceConsole-3.0",
+			"embeds": ["*.xml"]
 		}
 	]
 }

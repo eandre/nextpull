@@ -2,8 +2,10 @@ package ready
 
 import (
 	"github.com/eandre/lunar-shim/hbd"
+	"github.com/eandre/lunar-wow/pkg/luastrings"
 	"github.com/eandre/lunar-wow/pkg/wow"
 	"github.com/eandre/nextpull/boss"
+	"github.com/eandre/nextpull/timeutil"
 )
 
 type Item interface {
@@ -38,28 +40,77 @@ func (i *RunBackItem) Ready(unit wow.UnitID) bool {
 	return dist <= 30
 }
 
-type FoodItem struct{}
-
-func (i *FoodItem) Name() string {
-	return "Eat Food"
+type AuraItem struct {
+	boss        *boss.Boss
+	name        string
+	icon        string
+	desc        string
+	missingDesc string
+	ids         map[int64]bool
 }
 
-func (i *FoodItem) Icon() string {
-	return "Interface\\Icons\\Spell_Misc_Food"
+func NewWellFedItem(b *boss.Boss) *AuraItem {
+	return &AuraItem{
+		boss:        b,
+		name:        "Eat Food",
+		missingDesc: "No food buff",
+		icon:        "Interface\\Icons\\Spell_Misc_Food",
+		ids:         wellFedMap,
+	}
 }
 
-func (i *FoodItem) Description() string {
-	return "Become |cffffffffWell Fed|r"
+func NewFlaskItem(b *boss.Boss) *AuraItem {
+	return &AuraItem{
+		boss:        b,
+		name:        "Flask up",
+		missingDesc: "No flask buff",
+		icon:        "Interface\\Icons\\Trade_Alchemy_Dpotion_d11",
+		ids:         flaskMap,
+	}
 }
 
-func (i *FoodItem) Ready(unit wow.UnitID) bool {
+func (i *AuraItem) Name() string {
+	return i.name
+}
+
+func (i *AuraItem) Icon() string {
+	return i.icon
+}
+
+func (i *AuraItem) Description() string {
+	return i.desc
+}
+
+func (i *AuraItem) Ready(unit wow.UnitID) bool {
+	dur, ok := i.getDur(unit)
+	if wow.UnitIsUnit(unit, "player") {
+		i.updateDesc(dur)
+	}
+	return ok && dur > i.boss.FightDuration()
+}
+
+func (i *AuraItem) getDur(unit wow.UnitID) (float32, bool) {
 	for idx := 1; ; idx++ {
-		_, _, _, _, _, _, _, _, _, _, spellID, _, _, _, _, _ := wow.UnitAura(unit, idx, "HELPFUL")
+		_, _, _, _, _, _, expires, _, _, _, spellID, _, _, _, _, _ := wow.UnitAura(unit, idx, "HELPFUL")
 		if spellID == 0 {
-			return false
-		} else if wellFedMap[spellID] {
-			return true
+			return -1, false
+		} else if i.ids[spellID] {
+			dt := float32(expires - wow.GetTime())
+			return dt, true
 		}
+	}
+}
+
+func (i *AuraItem) updateDesc(dur float32) {
+	mins, secs, _ := timeutil.Display(dur)
+	if dur <= 0 {
+		i.desc = "|cffff0000" + i.missingDesc + "|r"
+	} else if dur > i.boss.FightDuration() {
+		i.desc = "Expires in |cffffffff" + luastrings.ToString(mins+1) + " minutes|r"
+	} else if mins > 0 {
+		i.desc = "Expires in |cffff0000" + luastrings.ToString(mins+1) + " minutes|r"
+	} else {
+		i.desc = "Expires in |cffff0000" + luastrings.ToString(secs) + " seconds|r"
 	}
 }
 
@@ -71,6 +122,10 @@ var wellFedMap = map[int64]bool{
 	180746: true,
 	180747: true,
 	188534: true,
+}
+
+var flaskMap = map[int64]bool{
+	156079: true,
 }
 
 type DummyItem struct {

@@ -11,11 +11,21 @@ type Raid struct {
 }
 
 type Boss struct {
-	EncounterID EncounterID
-	Name        string
-	X, Y        hbd.WorldCoord
-	Raid        *Raid
+	EncounterID    EncounterID
+	Name           string
+	X, Y           hbd.WorldCoord
+	Raid           *Raid
+	CustomDuration float32
 }
+
+func (b *Boss) FightDuration() float32 {
+	if b.CustomDuration != 0 {
+		return b.CustomDuration
+	}
+	return DefaultDuration
+}
+
+const DefaultDuration = 5 * 60
 
 var Raids = []*Raid{
 	&Raid{
@@ -29,10 +39,11 @@ var Raids = []*Raid{
 				Y:           3972.5,
 			},
 			&Boss{
-				Name:        "Shadow-Lord Iskar",
-				EncounterID: 1788,
-				X:           2497.2,
-				Y:           4040,
+				Name:           "Shadow-Lord Iskar",
+				EncounterID:    1788,
+				X:              2497.2,
+				Y:              4040,
+				CustomDuration: 4 * 60,
 			},
 		},
 	},
@@ -62,6 +73,25 @@ func Find(eid EncounterID) *Boss {
 		}
 	}
 	return UnknownBoss
+}
+
+func FindClosest() *Boss {
+	x, y, inst := hbd.PlayerWorldPosition()
+	for _, raid := range Raids {
+		if raid.InstanceID == inst {
+			var closestDist float32 = -1
+			var closestBoss *Boss
+			for _, boss := range raid.Bosses {
+				dist := hbd.WorldDistance(inst, x, y, boss.X, boss.Y)
+				if closestBoss == nil || dist < closestDist {
+					closestBoss = boss
+					closestDist = dist
+				}
+			}
+			return closestBoss
+		}
+	}
+	return nil
 }
 
 func init() {

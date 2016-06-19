@@ -1,11 +1,11 @@
 package ui
 
 import (
-	"github.com/eandre/lunar-wow/pkg/luamath"
 	"github.com/eandre/lunar-wow/pkg/widget"
 	"github.com/eandre/lunar-wow/pkg/wow"
 	"github.com/eandre/nextpull/ready"
 	"github.com/eandre/nextpull/timer"
+	"github.com/eandre/nextpull/timeutil"
 )
 
 type readyFrame struct {
@@ -13,6 +13,8 @@ type readyFrame struct {
 	timer   widget.FontString
 	items   []*itemFrame
 	botLine widget.Texture
+	glow    widget.Texture
+	gonged  bool
 }
 
 type itemFrame struct {
@@ -32,6 +34,7 @@ var readyItems []ready.Item
 
 func Show(t *timer.Timer, items []ready.Item) {
 	frame.root.Show()
+	frame.gonged = false
 	Update(t, items)
 }
 
@@ -76,7 +79,7 @@ func Update(t *timer.Timer, items []ready.Item) {
 	}
 }
 
-func updateItemFrame(f *itemFrame, item ready.Item) {
+func updateItemFrame(f *itemFrame, item ready.Item) bool {
 	f.ri = item
 	f.name.SetText(item.Name())
 	f.subText.SetText(item.Description())
@@ -87,12 +90,14 @@ func updateItemFrame(f *itemFrame, item ready.Item) {
 		f.name.SetAlpha(0.5)
 		f.subText.SetAlpha(0.5)
 		f.check.Show()
-	} else {
-		f.icon.SetAlpha(1)
-		f.name.SetAlpha(1)
-		f.subText.SetAlpha(1)
-		f.check.Hide()
+		return true
 	}
+
+	f.icon.SetAlpha(1)
+	f.name.SetAlpha(1)
+	f.subText.SetAlpha(1)
+	f.check.Hide()
+	return false
 }
 
 var itemAcc float32
@@ -109,8 +114,27 @@ func itemUpdate(dt float32) {
 	}
 	itemAcc -= 0.5
 
+	allReady := true
 	for _, f := range frame.items {
-		updateItemFrame(f, f.ri)
+		rdy := updateItemFrame(f, f.ri)
+		allReady = allReady && rdy
+	}
+
+	shouldGong := false
+	if allReady {
+		frame.glow.SetVertexColor(0, 1, 0, 1)
+	} else if pullTimer.ETA < wow.GetTime() {
+		// time exceeded
+		frame.glow.SetVertexColor(1, 0, 0, 1)
+		shouldGong = true
+	} else {
+		frame.glow.SetVertexColor(1, 1, 1, 1)
+	}
+
+	if shouldGong && !frame.gonged {
+		// Gong!
+		wow.PlaySound("FX_Scene_AlittlePatience_SiteAttack_Alert", "Master")
+		frame.gonged = true
 	}
 }
 
@@ -129,15 +153,11 @@ func timerUpdate(dt float32) {
 	timerAcc -= 0.1
 
 	dur := pullTimer.ETA - wow.GetTime()
+	mins, secs, neg := timeutil.Display(float32(dur))
 	sign := ""
-	if dur < 0 {
-		dur = -dur
+	if neg {
 		sign = "+"
 	}
-
-	secs := luamath.Ceil(float32(dur))
-	mins := luamath.Floor(float32(secs) / 60)
-	secs = secs % 60
 	frame.timer.SetFormattedText("%s%02d:%02d", sign, mins, secs)
 }
 
@@ -198,11 +218,11 @@ func init() {
 	topLine.SetSize(418, 7)
 	topLine.SetTexCoord(0.00195313, 0.81835938, 0.01953125, 0.03320313)
 
-	topGlow := root.CreateTexture()
-	topGlow.SetPoint("BOTTOM", root, "TOP", 0, 7)
-	topGlow.SetTexture("Interface\\LevelUp\\LevelUpTex")
-	topGlow.SetSize(226, 117)
-	topGlow.SetTexCoord(0.55859375, 1, 0.240234375, 0.466796875)
+	glow := root.CreateTexture()
+	glow.SetPoint("BOTTOM", root, "TOP", 0, 7)
+	glow.SetTexture("Interface\\LevelUp\\LevelUpTex")
+	glow.SetSize(226, 117)
+	glow.SetTexCoord(0.55859375, 1, 0.240234375, 0.466796875)
 
 	botLine := root.CreateTexture()
 	botLine.SetPoint("TOP", root, "BOTTOM", 0, 0)
@@ -224,6 +244,7 @@ func init() {
 
 	frame = &readyFrame{
 		root:    root,
+		glow:    glow,
 		botLine: botLine,
 		timer:   timerText,
 	}

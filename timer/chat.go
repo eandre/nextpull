@@ -45,7 +45,7 @@ func init() {
 
 		if message == "TIMERSTOP" {
 			// Stop current timers
-			curr = nil
+			stopTimer()
 			return
 		}
 
@@ -65,11 +65,11 @@ func init() {
 		b := boss.Find(eid)
 
 		now := wow.GetTime()
-		curr = &Timer{
+		newTimer(&Timer{
 			Creator: wow.GUID(parts[2]),
 			Started: now + wow.Time(luastrings.ToFloat(parts[3])),
 			ETA:     now + wow.Time(luastrings.ToFloat(parts[4])),
 			Boss:    b,
-		}
+		})
 	})
 }
